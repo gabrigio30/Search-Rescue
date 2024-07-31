@@ -1,0 +1,2084 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
+<nta>
+	<declaration>
+
+// Place global declarations here.
+const int numberOfCivilians = 7;
+const int numberOfFirstResponders = 4;
+const int numberOfDrones = 2+1; //drones start from 1
+const int [0, 1000] n=25, m=15;    //queste sono le due dimensioni della griglia ("n" indica il numero di righe, "m" quello delle colonne)
+const int gridDimension = n * m;
+bool initDone;
+
+//Shared clock
+int sharedClock=0;
+const int entity_number= numberOfCivilians + numberOfFirstResponders + numberOfDrones - 1; //number of total entities
+int recClock[entity_number];
+int count_safe=0;
+
+//______________________________________________________________________________________________________
+//INFO ABOUT THE GRID
+
+  bool fires[n][m] = {
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
+        {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+        {0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+    };
+
+  bool exits[n][m] = {
+        {0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0}
+    };
+
+int busy[n][m] = {
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
+    };
+int busyFR[n][m] = {
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
+    };
+
+
+
+//______________________________________________________________________________________________________
+//CHANNELS
+
+chan firstResponderHelps [numberOfCivilians], firstResponderDone [numberOfCivilians];
+chan zeroResponderHelps [numberOfCivilians], zeroResponderDone [numberOfCivilians];
+chan tooLate[numberOfCivilians];    //channel used to signal that a civilian has died while they were being helped by a ZR of FR
+chan becomeZeroResponder [numberOfCivilians];
+chan tellToContactFirstResponder [numberOfCivilians];
+chan contactFirstResponder [numberOfCivilians];
+
+chan tooLateFR[numberOfFirstResponders];
+
+chan notifyFR[numberOfFirstResponders];    //serve a notificare il FR del fatto che un civilian lo contatterà
+
+
+//______________________________________________________________________________________________________
+//COMMUNICATION VARIABLES
+
+//ZERO RESPONDER CASE
+int whereZR[numberOfCivilians][2];    //tells the zero responder the coor of the victim he needs to help (written by drone, read by ZR)
+int helpingAsZR[numberOfCivilians];    //in position "i" we will have the id of the civilian who is being helped by the ZR responder with id==i (written by drone, read by ZR) 
+int beingHelpedByZR[numberOfCivilians];    //in position "i" I have the id of the ZR responder helping the civilian with id==i (written by ZR, read by civilian)
+int whereIsTheVictim[numberOfCivilians][2];     //coordinate della vittima nella riga di indice uguale all'id del civilian che aiuta
+int droneActing[numberOfDrones][2]; //it relates the id of the drone with the two civilians (or a civilian and a fr) he is acting toward. [0] -&gt; id, [1] -&gt; civ_id
+
+//FIRST RESPONDER CASE
+int whereIsTheNeededFR[numberOfCivilians][2];    //the drone must write in position "i" the coor of the FR that the civilian with id=="i" needs to contact
+int idOfTheVictim[numberOfFirstResponders];    //qua serve l'id della vittima. La posizione è quella del FR selezionato
+int idOfTheHelper[numberOfFirstResponders];    //qua serve l'id del civilian che contatta il first responder. La posizione è l'id del FR selezionato
+int idOfTheFR[numberOfCivilians];                //id del FR nella riga con indice uguale all'id dell'aiutante
+
+//FIRST RESPONDER FINDS THE CIVILIAN IN DANGER WITHOUT THE HELP OF THE DRONE
+int idOfHelpingFR[numberOfCivilians];
+
+//Array containing the ID of the civilians that are already being helped
+int helped[numberOfCivilians] = {-1, -1, -1, -1, -1, -1, -1};
+int helping[numberOfCivilians] = {-1, -1, -1, -1, -1, -1, -1};
+
+
+bool checkDiam(int diam, int i, int j) {
+    if (diam&gt;n-i || diam&gt;m-j) return false;
+    else return true;
+}
+
+//Fire and exit checks
+//______________________________________________________________________________________________________
+//CONTROLLI PER I FUOCHI
+
+bool checkUnder(int i, int j)    //controlla la cella sotto
+{
+    return fires[i+1][j];
+}
+
+bool checkAbove(int i, int j)    //controlla la cella sopra
+{
+    return fires[i-1][j];
+}
+
+bool checkLeft(int i, int j)    //controlla la cella sinistra
+{
+    return fires[i][j-1];
+}
+
+bool checkRight(int i, int j)    //controlla la cella destra
+{
+    return fires[i][j+1];
+}
+
+bool checkDownLeft(int i, int j)    //controlla la cella diagonale in basso a sinistra
+{
+    return fires[i+1][j-1];
+}
+
+bool checkDownRight(int i, int j)    //controlla la cella diagonale in basso a destra
+{
+    return fires[i+1][j+1];
+}
+
+bool checkUpLeft(int i, int j)    //controlla la cella diagonale in alto a sinistra
+{
+    return fires[i-1][j-1];
+}
+
+bool checkUpRight(int i, int j)    //controlla la cella diagonale in alto a destra
+{
+    return fires[i-1][j+1];
+}
+
+//______________________________________________________________________________________________________
+//CONTROLLI PER LE USCITE
+
+bool checkUnderExit(int i, int j)    //controlla la cella sotto
+{
+    return exits[i+1][j];
+}
+
+bool checkAboveExit(int i, int j)    //controlla la cella sopra
+{
+    return exits[i-1][j];
+}
+
+bool checkLeftExit(int i, int j)    //controlla la cella sinistra
+{
+    return exits[i][j-1];
+}
+
+bool checkRightExit(int i, int j)    //controlla la cella destra
+{
+    return exits[i][j+1];
+}
+
+bool checkDownLeftExit(int i, int j)    //controlla la cella diagonale in basso a sinistra
+{
+    return exits[i+1][j-1];
+}
+
+bool checkDownRightExit(int i, int j)    //controlla la cella diagonale in basso a destra
+{
+    return exits[i+1][j+1];
+}
+
+bool checkUpLeftExit(int i, int j)    //controlla la cella diagonale in alto a sinistra
+{
+    return exits[i-1][j-1];
+}
+
+bool checkUpRightExit(int i, int j)    //controlla la cella diagonale in alto a destra
+{
+    return exits[i-1][j+1];
+}
+
+//______________________________________________________________________________________________________
+
+bool checkExit(int i, int j) 
+{
+    if(i==0)
+    {
+        if(j==0)
+        {
+            return checkUnderExit(i,j)||checkRightExit(i,j)||checkDownRightExit(i,j); 
+        }
+        else if(j==m-1)
+        {
+            return checkUnderExit(i,j)||checkLeft(i,j)||checkDownLeft(i,j); 
+        }
+        else
+        {
+            return checkUnderExit(i,j)||checkLeftExit(i,j)||checkRightExit(i,j)||checkDownLeftExit(i,j)||checkDownRightExit(i,j);
+        }
+    }
+    else if(i==n-1)
+    {
+        if(j==0)
+        {
+            return checkAboveExit(i,j)||checkRightExit(i,j)||checkUpRightExit(i,j); 
+        }
+        else if(j==m-1)
+        {
+            return checkAboveExit(i,j)||checkLeftExit(i,j)||checkUpLeftExit(i,j); 
+        }
+        else
+        {
+            return checkAboveExit(i,j)||checkLeftExit(i,j)||checkRightExit(i,j)||checkUpLeftExit(i,j)||checkUpRightExit(i,j);
+        }
+    }
+    else if(j==0)
+    {
+        return checkAboveExit(i,j)||checkUnderExit(i,j)||checkUpRightExit(i,j)||checkDownRightExit(i,j);
+    }
+    else if(j==m-1)
+    {
+        return checkAboveExit(i,j)||checkUnder(i,j)||checkUpLeftExit(i,j)||checkDownLeftExit(i,j);
+    }
+    else
+    {
+        return checkAboveExit(i,j)||checkUnderExit(i,j)||checkLeftExit(i,j)||checkRightExit(i,j)||checkDownLeftExit(i,j)||checkDownRightExit(i,j)||checkUpLeftExit(i,j)||checkUpRightExit(i,j);
+    }  
+}
+
+//______________________________________________________________________________________________________
+
+bool checkDanger(int i, int j) 
+{
+    if(i==0)
+    {
+        if(j==0)
+        {
+            return checkUnder(i,j)||checkRight(i,j)||checkDownRight(i,j); 
+        }
+        else if(j==m-1)
+        {
+            return checkUnder(i,j)||checkLeft(i,j)||checkDownLeft(i,j); 
+        }
+        else
+        {
+            return checkUnder(i,j)||checkLeft(i,j)||checkRight(i,j)||checkDownLeft(i,j)||checkDownRight(i,j);
+        }
+    }
+    else if(i==n-1)
+    {
+        if(j==0)
+        {
+            return checkAbove(i,j)||checkRight(i,j)||checkUpRight(i,j); 
+        }
+        else if(j==m-1)
+        {
+            return checkAbove(i,j)||checkLeft(i,j)||checkUpLeft(i,j); 
+        }
+        else
+        {
+            return checkAbove(i,j)||checkLeft(i,j)||checkRight(i,j)||checkUpLeft(i,j)||checkUpRight(i,j);
+        }
+    }
+    else if(j==0)
+    {
+        return checkAbove(i,j)||checkUnder(i,j)||checkUpRight(i,j)||checkDownRight(i,j);
+    }
+    else if(j==m-1)
+    {
+        return checkAbove(i,j)||checkUnder(i,j)||checkUpLeft(i,j)||checkDownLeft(i,j);
+    }
+    else
+    {
+        return checkAbove(i,j)||checkUnder(i,j)||checkLeft(i,j)||checkRight(i,j)||checkDownLeft(i,j)||checkDownRight(i,j)||checkUpLeft(i,j)||checkUpRight(i,j);
+    }  
+}
+
+int dist(int i, int j, int obj_i, int obj_j) {
+    int res=0;
+    if (i&gt;=obj_i &amp;&amp; j&gt;=obj_j) res=(i-obj_i)+(j-obj_j);
+    else if (i&lt;obj_i &amp;&amp; j&gt;=obj_j) res=(obj_i-i)+(j-obj_j);
+    else if (i&gt;=obj_i &amp;&amp; j&lt;obj_j) res=(i-obj_i)+(obj_j-j);
+    else if (i&lt;obj_i &amp;&amp; j&lt;obj_j) res=(obj_i-i)+(obj_j-j);
+    else res=-1;
+    return res;
+}    
+
+//assumption: if busy[i][j]&lt;0 it is not occupied (so when it is equal to -1)
+int detect(int i, int j, int N_v) {
+    int [0, n-1] i0; int [0, m-1] j0; int [0, n-1] i1; int [0, m-1] j1;
+    for (i0=0; i0&lt;n-1; i0++) {
+        for (j0=0; j0&lt;m-1; j0++) {
+            for (i1=0; i1&lt;n-1; i1++) {
+                for (j1=0; j1&lt;m-1; j1++) {
+                   if ((dist(i, j, i0, j0)&lt;=N_v &amp;&amp; busy[i0][j0] &gt; -1
+                   &amp;&amp;  dist(i, j, i1, j1)&lt;=N_v &amp;&amp; busy[i1][j1] &gt; -1
+                   &amp;&amp; (i0!=i1 || j0!=j1) &amp;&amp; checkDanger(i1, j1) == true &amp;&amp; !checkExit(i1,j1) == true 
+                   &amp;&amp; ((checkDanger(i0, j0) == false) || (checkDanger(i0, j0)==true &amp;&amp; checkExit(i0, j0)==true))) &amp;&amp; helping[busy[i0][j0]]==-1)
+               return busy[i0][j0];
+            
+            }
+        }
+      }
+    }
+    return -1;
+}
+
+int whoToHelp(int i, int j, int N_v, int pos) {
+    int [0, n-1] i0; int [0, m-1] j0; int [0, n-1] i1; int [0, m-1] j1;
+    for (i0=0; i0&lt;n-1; i0++) {
+        for (j0=0; j0&lt;m-1; j0++) {   
+            for (i1=0; i1&lt;n-1; i1++) {
+                for (j1=0; j1&lt;m-1; j1++) {
+                    if ((dist(i, j, i0, j0)&lt;=N_v &amp;&amp; busy[i0][j0] &gt; -1
+                     &amp;&amp;  dist(i, j, i1, j1)&lt;=N_v &amp;&amp; busy[i1][j1] &gt; -1
+                     &amp;&amp; (i0!=i1 || j0!=j1) &amp;&amp; checkDanger(i1, j1) == true &amp;&amp; !checkExit(i1,j1) == true 
+                     &amp;&amp; ((checkDanger(i0, j0) == false) || (checkDanger(i0, j0)==true &amp;&amp; checkExit(i0, j0)==true)))) {
+                        if (pos==0) return i1;
+                        else if (pos==1) return j1;
+                        else return -1;
+                        }
+                    //else return -1;
+                  }
+            }
+        }
+    }
+    return -1;
+}
+
+int whoHelps(int i, int j, int N_v, int pos) {
+    int [0, n-1] i0; int [0, m-1] j0; int [0, n-1] i1; int [0, m-1] j1;
+    for (i0=0; i0&lt;n-1; i0++) {
+        for (j0=0; j0&lt;m-1; j0++) {   
+            for (i1=0; i1&lt;n-1; i1++) {
+                for (j1=0; j1&lt;m-1; j1++) {
+                    if ((dist(i, j, i0, j0)&lt;=N_v &amp;&amp; busy[i0][j0] &gt; -1
+                     &amp;&amp;  dist(i, j, i1, j1)&lt;=N_v &amp;&amp; busy[i1][j1] &gt; -1
+                     &amp;&amp; (i0!=i1 || j0!=j1) &amp;&amp; checkDanger(i1, j1) == true &amp;&amp; !checkExit(i1,j1) == true 
+                     &amp;&amp; ((checkDanger(i0, j0) == false) || (checkDanger(i0, j0)==true &amp;&amp; checkExit(i0, j0)==true)))) {
+                        if (pos==0) return i0;
+                        else if (pos==1) return j0;
+                        else return -1;
+                        }
+                   // else return -1;
+                  }
+            }
+        }
+    }
+    return -1;
+}
+
+int obtainCivilianInDangerId(int i, int j, int N_v) {
+    int [0, n-1] i0; int [0, m-1] j0; int [0, n-1] i1; int [0, m-1] j1;
+    for (i0=0; i0&lt;n-1; i0++) {
+        for (j0=0; j0&lt;m-1; j0++) {   
+            for (i1=0; i1&lt;n-1; i1++) {
+                for (j1=0; j1&lt;m-1; j1++) {
+                    if ((dist(i, j, i0, j0)&lt;=N_v &amp;&amp; busy[i0][j0] &gt; -1
+                     &amp;&amp;  dist(i, j, i1, j1)&lt;=N_v &amp;&amp; busy[i1][j1] &gt; -1
+                     &amp;&amp; (i0!=i1 || j0!=j1) &amp;&amp; checkDanger(i1, j1) == true &amp;&amp; !checkExit(i1,j1) == true 
+                     &amp;&amp; ((checkDanger(i0, j0) == false) || (checkDanger(i0, j0)==true &amp;&amp; checkExit(i0, j0)==true))) &amp;&amp; helped[busy[i1][j1]]==-1) 
+                    return busy[i1][j1];
+                   // else return -1;
+                 }         
+            }
+        }
+    }
+    return -1;
+}
+
+bool checkIfNotHelping(int zr_id) {
+    if (helpingAsZR[zr_id]==-1) return true;
+    else return false;
+}
+
+bool already_helping(int id, int civ_id, int drone_id) {
+    int [1, numberOfDrones-1] d;
+    for (d=1; d&lt;numberOfDrones-1; d++) {
+        if (d!=drone_id &amp;&amp; droneActing[d][0]==id &amp;&amp; droneActing[d][1]==civ_id) return true;
+    }
+    return false;
+}
+
+int whereFR(int i, int j, int N_v, int pos) {
+    int [0, n-1] i0; int [0, m-1] j0; 
+    for (i0=0; i0&lt;n-1; i0++) {
+        for (j0=0; j0&lt;m-1; j0++) {   
+            if (dist(i, j, i0, j0)&lt;=N_v &amp;&amp; busyFR[i0][j0] &gt; -1) {
+                /*if (i&gt;=i0 &amp;&amp; j&gt;=j0) {if (pos==0) return i-i0; else if (pos==1) return j-j0; else return -1;}
+                else if (i&lt;i0 &amp;&amp; j&gt;=j0) {if (pos==0) return i0-i; else if (pos==1) return j-j0; else return -1;} 
+                else if (i&gt;=i0 &amp;&amp; j&lt;j0) {if (pos==0) return i-i0; else if (pos==1) return j0-j; else return -1;}
+                else if (i&lt;i0 &amp;&amp; j&lt;j0) {if (pos==0) return i0-i; else if (pos==1) return j0-j; else return -1;}
+                else return -1;*/
+                if (pos==0) return i0;
+                else if (pos==1) return j0;
+                else return -1;
+            }
+        }         
+    }
+    return -1;
+}
+
+//----------------------------------------------------------------
+bool checkClocks() {
+int i;
+    for(i = 0; i&lt;entity_number; i++){
+        if (recClock[i]!=sharedClock) return false;
+    }    
+    return true;
+}</declaration>
+	<template>
+		<name>Sync</name>
+		<declaration>int c = 0;
+int rig = 0; 
+int col = 0;
+</declaration>
+		<location id="id0" x="-1054" y="-204">
+			<committed/>
+		</location>
+		<location id="id1" x="-756" y="-204">
+			<committed/>
+		</location>
+		<location id="id2" x="-756" y="17">
+			<committed/>
+		</location>
+		<location id="id3" x="-1054" y="17">
+		</location>
+		<location id="id4" x="-1232" y="17">
+		</location>
+		<init ref="id0"/>
+		<transition id="id5">
+			<source ref="id4"/>
+			<target ref="id3"/>
+			<label kind="assignment" x="-1198" y="-93">sharedClock++</label>
+			<nail x="-1147" y="-68"/>
+		</transition>
+		<transition id="id6">
+			<source ref="id3"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-1190" y="25">checkClocks()</label>
+		</transition>
+		<transition id="id7">
+			<source ref="id2"/>
+			<target ref="id3"/>
+			<label kind="guard" x="-1020" y="17">c &gt;= numberOfFirstResponders</label>
+			<label kind="assignment" x="-994" y="34">initDone = true</label>
+		</transition>
+		<transition id="id8">
+			<source ref="id2"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-671" y="-51">c &lt; numberOfFirstResponders</label>
+			<label kind="assignment" x="-671" y="-25">idOfTheVictim[c] := -1,
+idOfTheHelper[c] := -1,
+c = c + 1</label>
+			<nail x="-680" y="-34"/>
+			<nail x="-680" y="51"/>
+		</transition>
+		<transition id="id9">
+			<source ref="id1"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-748" y="-136">c &gt;= numberOfCivilians</label>
+			<label kind="assignment" x="-748" y="-119">c = 0</label>
+		</transition>
+		<transition id="id10">
+			<source ref="id1"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-858" y="-442">c &lt; numberOfCivilians</label>
+			<label kind="assignment" x="-858" y="-425">whereZR[c][0] = -1, whereZR[c][1] = -1,
+helpingAsZR[c] = -1,
+beingHelpedByZR[c] = -1,
+whereIsTheNeededFR[c][0] = -1, whereIsTheNeededFR[c][1] = -1,
+idOfTheFR[c] = -1, idOfHelpingFR[c] = -1,
+whereIsTheVictim[c][0] = -1, whereIsTheVictim[c][1] = -1,
+c = c + 1</label>
+			<nail x="-824" y="-280"/>
+			<nail x="-688" y="-280"/>
+		</transition>
+		<transition id="id11">
+			<source ref="id0"/>
+			<target ref="id1"/>
+			<label kind="assignment" x="-918" y="-195">c:=0</label>
+		</transition>
+	</template>
+	<template>
+		<name>Drone</name>
+		<parameter>int entityId, int [0, numberOfDrones] drone_id, int[0, n-1] i, int[0, m-1] j, int[0, n-1] N_v, int tresh, int diam</parameter>
+		<declaration>// Choosable variables: diam, inizial position (i, j), N_v
+
+//Clock
+int entityClock=0;
+
+//Number of tiles of distance
+//int i, int j, int N_v
+
+//Id of responder
+int id=-1;
+int civ_id=-1;
+
+//Nearest FR
+int i_fr=-1;
+int j_fr=-1;
+//int tresh
+
+
+//Moving of the drone
+int moveClock=0;
+int[0, 3] dir; //0 is dx, 1 is down, 2 is sx and 3 is up
+
+int move_i(int i) { //the drone stops one cycle at each corner for design choice
+    if (moveClock&lt;diam-1) { //I update the direction only in one of the two functions
+        moveClock++;
+        if (dir==0 || dir==2) {
+            return i;
+        }
+        else if (dir==1) {
+            return i+1;
+        }
+        else if (dir==3) {
+            return i-1;
+        }    
+        else {return -1;}
+        
+    }
+    else if (moveClock==diam-1) {
+        moveClock=0;
+        if (dir==0 || dir==2) {
+            dir++;
+        }
+        else if (dir==1) {
+            dir++;
+        }
+        else if (dir==3) {
+            dir=0;
+        }
+        else {return -1;}
+        return i;
+    }
+    return -1;
+}
+
+int move_j(int j) {
+    int res;
+    if (dir==1 || dir==3) {
+        res=j;
+    }
+    else if (dir==0) {
+        if (moveClock==0) res=j;
+        else res=j+1;
+    }
+    else if (dir==2) {
+        if (moveClock!=0) res=j-1;
+        else res=j;
+    }
+    else res=-1;
+    return res;
+}
+
+
+bool civilianHelped(int ide){
+int i = 0; 
+
+    for(i=0; i&lt;numberOfCivilians; i++){
+        if(helped[i]==ide)
+            return true;
+    }
+
+return false;
+}
+
+
+bool freeFR(int ide){
+int i = 0;    
+    for(i=0; i&lt;numberOfCivilians; i++){
+        if(idOfHelpingFR[i]==ide||idOfTheFR[i]==ide)
+            return false;
+    }
+
+return true;
+}
+
+
+bool helperFree(int ide){
+int i = 0;
+    for(i=0; i&lt;numberOfFirstResponders; i++){
+        if(idOfTheHelper[i]==ide)
+            return false;
+    }
+
+return true;
+}
+
+</declaration>
+		<location id="id12" x="-237" y="-144">
+			<name x="-314" y="-170">moving</name>
+		</location>
+		<location id="id13" x="-612" y="-144">
+			<name x="-622" y="-178">start</name>
+			<committed/>
+		</location>
+		<location id="id14" x="926" y="-416">
+			<name x="916" y="-450">contacting</name>
+			<committed/>
+		</location>
+		<location id="id15" x="943" y="110">
+			<name x="933" y="76">helping</name>
+			<committed/>
+		</location>
+		<location id="id16" x="662" y="-153">
+			<name x="652" y="-187">step2</name>
+			<committed/>
+		</location>
+		<location id="id17" x="942" y="-153">
+			<name x="932" y="-187">step3</name>
+			<committed/>
+		</location>
+		<location id="id18" x="34" y="-144">
+			<name x="24" y="-178">step1</name>
+			<committed/>
+		</location>
+		<location id="id19" x="255" y="110">
+			<committed/>
+		</location>
+		<location id="id20" x="348" y="-416">
+			<committed/>
+		</location>
+		<location id="id21" x="-238" y="-433">
+			<committed/>
+		</location>
+		<init ref="id13"/>
+		<transition id="id22">
+			<source ref="id14"/>
+			<target ref="id12"/>
+			<label kind="guard" x="-238" y="-561">!checkIfNotHelping(id) &amp;&amp; entityClock+1==sharedClock</label>
+			<label kind="assignment" x="-229" y="-544">entityClock++, recClock[entityId]=entityClock,
+id = -1, civ_id = -1</label>
+			<nail x="857" y="-540"/>
+			<nail x="-367" y="-540"/>
+			<nail x="-375" y="-285"/>
+		</transition>
+		<transition id="id23">
+			<source ref="id15"/>
+			<target ref="id12"/>
+			<label kind="guard" x="-221" y="-8">!checkIfNotHelping(id) &amp;&amp; entityClock+1==sharedClock</label>
+			<label kind="assignment" x="-204" y="17">entityClock++, recClock[entityId]=entityClock,
+id = 0, civ_id = 0</label>
+			<nail x="850" y="59"/>
+			<nail x="0" y="59"/>
+		</transition>
+		<transition id="id24">
+			<source ref="id21"/>
+			<target ref="id12"/>
+			<label kind="synchronisation" x="-314" y="-391">tellToContactFirstResponder[id]!</label>
+			<label kind="assignment" x="-297" y="-374">entityClock++, 
+recClock[entityId]=entityClock,
+id = -1, civ_id = -1,
+i_fr = -1, j_fr = -1</label>
+		</transition>
+		<transition id="id25">
+			<source ref="id20"/>
+			<target ref="id21"/>
+			<label kind="synchronisation" x="-42" y="-442">notifyFR[busyFR[i_fr][j_fr]]!</label>
+			<nail x="331" y="-416"/>
+		</transition>
+		<transition id="id26">
+			<source ref="id14"/>
+			<target ref="id20"/>
+			<label kind="guard" x="416" y="-484">checkIfNotHelping(id) &amp;&amp; entityClock+1==sharedClock</label>
+			<label kind="assignment" x="416" y="-459">whereIsTheVictim[id][0]=whoToHelp(i, j, N_v, 0),
+whereIsTheVictim[id][1]=whoToHelp(i, j, N_v, 1),
+idOfTheFR[id]=busyFR[i_fr][j_fr],
+idOfTheVictim[busyFR[i_fr][j_fr]]=civ_id,
+whereIsTheNeededFR[id][0]=whereFR(i, j, N_v, 0),
+whereIsTheNeededFR[id][1]=whereFR(i, j, N_v, 1),
+droneActing[drone_id][0]=0,
+droneActing[drone_id][1]=0,
+idOfTheHelper[busyFR[i_fr][j_fr]]=id</label>
+			<nail x="790" y="-416"/>
+		</transition>
+		<transition id="id27">
+			<source ref="id19"/>
+			<target ref="id12"/>
+			<label kind="synchronisation" x="-220" y="102">becomeZeroResponder[id]!</label>
+			<label kind="assignment" x="-220" y="119">entityClock++, recClock[entityId]=entityClock,
+id = -1, civ_id = -1,
+i_fr = -1, j_fr = -1</label>
+			<nail x="-238" y="119"/>
+		</transition>
+		<transition id="id28">
+			<source ref="id15"/>
+			<target ref="id19"/>
+			<label kind="guard" x="314" y="212">checkIfNotHelping(id) &amp;&amp; entityClock+1==sharedClock</label>
+			<label kind="assignment" x="314" y="76">helpingAsZR[id]=civ_id,
+whereZR[id][0]=whoHelps(i, j, N_v, 0),
+whereZR[id][1]=whoHelps(i, j, N_v, 1),
+whereIsTheVictim[civ_id][0]=whoToHelp(i, j, N_v, 0),
+whereIsTheVictim[civ_id][1]=whoToHelp(i, j, N_v, 1),
+droneActing[drone_id][0]=0,
+droneActing[drone_id][1]=0</label>
+		</transition>
+		<transition id="id29">
+			<source ref="id18"/>
+			<target ref="id12"/>
+			<label kind="guard" x="-153" y="-221">id==-1</label>
+			<label kind="assignment" x="-195" y="-272">i = move_i(i), j = move_j(j),
+entityClock++, 
+recClock[entityId]=entityClock</label>
+			<nail x="-8" y="-221"/>
+			<nail x="-195" y="-221"/>
+		</transition>
+		<transition id="id30">
+			<source ref="id12"/>
+			<target ref="id18"/>
+			<label kind="guard" x="-204" y="-153">entityClock+1==sharedClock</label>
+			<label kind="assignment" x="-178" y="-170">id=detect(i, j, N_v)</label>
+		</transition>
+		<transition id="id31">
+			<source ref="id16"/>
+			<target ref="id12"/>
+			<label kind="guard" x="535" y="-119">entityClock+1==sharedClock &amp;&amp;
+(already_helping(id, civ_id, drone_id) 
+|| civilianHelped(id) ||
+(i_fr!=-1 &amp;&amp; j_fr!=-1 &amp;&amp; !freeFR(busyFR[i_fr][j_fr])) 
+|| !helperFree(id))</label>
+			<label kind="assignment" x="298" y="-9">droneActing[drone_id][0]=0,
+droneActing[drone_id][1]=0,
+entityClock++, recClock[entityId]=entityClock</label>
+			<nail x="602" y="-9"/>
+			<nail x="280" y="-9"/>
+		</transition>
+		<transition id="id32">
+			<source ref="id16"/>
+			<target ref="id17"/>
+			<label kind="guard" x="680" y="-229">!already_helping(id, civ_id, drone_id) &amp;&amp; entityClock+1==sharedClock
+&amp;&amp; !civilianHelped(civ_id)
+&amp;&amp; ((i_fr == -1 &amp;&amp; j_fr == -1 &amp;&amp; helperFree(id)) ||
+freeFR(busyFR[i_fr][j_fr]))</label>
+		</transition>
+		<transition id="id33">
+			<source ref="id17"/>
+			<target ref="id15"/>
+			<label kind="guard" x="866" y="-94">dist(i, j, i_fr, j_fr)&gt;tresh || (i_fr==-1 &amp;&amp; j_fr==-1) 
+&amp;&amp; entityClock+1==sharedClock</label>
+		</transition>
+		<transition id="id34">
+			<source ref="id17"/>
+			<target ref="id14"/>
+			<label kind="guard" x="799" y="-289">dist(i, j, i_fr, j_fr)&lt;=tresh &amp;&amp; 
+i_fr!=-1 &amp;&amp; j_fr!=-1 &amp;&amp; entityClock+1==sharedClock</label>
+		</transition>
+		<transition id="id35">
+			<source ref="id18"/>
+			<target ref="id16"/>
+			<label kind="guard" x="229" y="-179">id!=-1 &amp;&amp; entityClock+1==sharedClock</label>
+			<label kind="assignment" x="238" y="-144">civ_id=obtainCivilianInDangerId(i, j, N_v),
+i_fr=whereFR(i, j, N_v, 0),
+j_fr=whereFR(i, j, N_v, 1),
+droneActing[drone_id][0]=id,
+droneActing[drone_id][1]=civ_id</label>
+		</transition>
+		<transition id="id36">
+			<source ref="id13"/>
+			<target ref="id12"/>
+			<label kind="guard" x="-595" y="-136">checkDiam(diam, i, j) &amp;&amp;
+initDone == 1</label>
+		</transition>
+	</template>
+	<template>
+		<name>FirstResponder</name>
+		<parameter>int entityId, int [0, numberOfFirstResponders-1] id, int [0,n-1] i, int [0,m-1] j, const int [0,100] Tfr</parameter>
+		<declaration>/*
+parameters explanation:
+- entityId, used for the system synchronization
+- id, unique Id of each first responder
+- i, position on the row of the grid
+- j, position on the columns of the grid
+- Tfr, time needed to assist a civilian
+*/
+
+//Entity clocks
+int entityClock = 0;
+int firstResponderClock = 0;
+
+//number kept to make sure the next movement can be safely performed
+int m = 0;
+
+//id of the civiian the FR is helping, used WHEN there is NO DRONE INVOLVED
+int idNear = -1;
+
+bool alreadyHelped(int ide){
+int i;
+    for(i = 0; i &lt; numberOfCivilians; i++){
+        if(helpingAsZR[i]==ide) return true;
+    }
+
+    for(i = 0; i &lt; numberOfFirstResponders; i ++){
+        if(idOfTheVictim[i]==ide) return true;
+    }
+    return false;
+}
+
+//function checking if first-responder can help someone near,'distance 1' includes the 8 adjacent cells (diagonals included)
+int canHelp(int i, int j){
+    //se il civile è in pericolo e si trova in una delle otto caselle adiacenti lo aiuto (azione con priorità più alta)
+    if(i &gt; 0 &amp;&amp; j &gt; 0 &amp;&amp; busy[i-1][j-1]!=-1 &amp;&amp; checkDanger(i-1, j-1)==true &amp;&amp; !alreadyHelped(busy[i][j])){
+        return busy[i-1][j-1];
+    }
+    else if(i &gt; 0 &amp;&amp; busy[i-1][j]!=-1 &amp;&amp; checkDanger(i-1, j)==true &amp;&amp; !alreadyHelped(busy[i-1][j])){
+        return busy[i-1][j];
+    }
+    else if(i &gt; 0 &amp;&amp; (j+1) &lt; m &amp;&amp; busy[i-1][j+1]!=-1 &amp;&amp; checkDanger(i-1, j+1)==true &amp;&amp; !alreadyHelped(busy[i][j+1])){
+        return busy[i-1][j+1];
+    }
+    else if(j &gt; 0 &amp;&amp; busy[i][j-1]!=-1 &amp;&amp; checkDanger(i, j-1)==true &amp;&amp; !alreadyHelped(busy[i][j-1])){    
+        return busy[i][j-1];
+    }
+    else if((j+1) &lt; m &amp;&amp; busy[i][j+1]!=-1 &amp;&amp; checkDanger(i, j+1)==true &amp;&amp; !alreadyHelped(busy[i][j+1])){
+        return busy[i][j+1];
+    }
+    else if((i+1) &lt; n &amp;&amp; j &gt; 0 &amp;&amp; busy[i+1][j-1]!=-1 &amp;&amp; checkDanger(i+1, j-1)==true &amp;&amp; !alreadyHelped(busy[i+1][j-1])){
+        return busy[i+1][j-1];
+    }
+    else if((i+1) &lt; n &amp;&amp; busy[i+1][j]!=-1 &amp;&amp; checkDanger(i+1, j)==true &amp;&amp; !alreadyHelped(busy[i+1][j])){
+        return busy[i+1][j];
+    }
+    else if((j+1) &lt; m &amp;&amp; (i+1) &lt; n &amp;&amp; busy[i+1][j+1]!=-1 &amp;&amp; checkDanger(i+1, j+1)==true &amp;&amp; !alreadyHelped(busy[i+1][j+1])){
+        return busy[i+1][j+1];
+    }
+    else {
+        return -1;
+    }
+}
+
+
+/*
+we check if the first responder can move on the adjacent randomly selected tile, the 
+combinations are derived as follows based on non-deterministically selected variable 'm'
+
+     J
+
+I    1  |  2  |  3
+   -----------------
+     4  |  X  |  5
+   -----------------
+     6  |  7  |  8
+
+*/
+
+bool canMoveThere(int i, int j, int mov){
+    if(mov == 1){
+        //each case checks if the tile where I want to move is busy, if there is fire and if I will not go out of the matrix's bounds
+        if(i&gt;0 &amp;&amp; j&gt;0 &amp;&amp; busyFR[i-1][j-1]==-1 &amp;&amp; busy[i-1][j-1]==-1 &amp;&amp; fires[i-1][j-1]==0){
+            return true;
+        }
+        else return false;
+    }
+    else if(mov == 2){
+        if(i&gt;0 &amp;&amp; busyFR[i-1][j]==-1 &amp;&amp; busy[i-1][j]==-1 &amp;&amp; fires[i-1][j]==0){
+            return true;
+        }
+        else return false;
+    }
+    else if(mov == 3){
+        if(i&gt;0 &amp;&amp; j&lt;m-1 &amp;&amp;busyFR[i-1][j+1]==-1 &amp;&amp; busy[i-1][j+1]==-1 &amp;&amp; fires[i-1][j+1]==0){
+            return true;
+        }
+        else return false;
+    }
+    else if(mov == 4){
+        if(j&gt;0 &amp;&amp; busyFR[i][j-1]==-1 &amp;&amp; busy[i][j-1]==-1 &amp;&amp; fires[i][j-1]==0){
+            return true;
+        }
+        else return false;
+    }
+    else if(mov == 5){
+        if(j&lt;m-1 &amp;&amp; busyFR[i][j+1]==-1 &amp;&amp; busy[i][j+1]==-1 &amp;&amp; fires[i][j+1]==0){
+            return true;
+        }
+        else return false;
+    }
+    else if(mov == 6){
+        if(i&lt;n-1 &amp;&amp; j&gt;0 &amp;&amp; busyFR[i+1][j-1]==-1 &amp;&amp; busy[i+1][j-1]==-1 &amp;&amp; fires[i+1][j-1]==0){
+            return true;
+        }
+        else return false;
+    }
+    else if(mov == 7){
+        if(i&lt;n-1 &amp;&amp; busyFR[i+1][j]==-1 &amp;&amp; busy[i+1][j]==-1 &amp;&amp; fires[i+1][j]==0){
+            return true;
+        }
+        else return false;
+    }
+    else if(mov == 8){
+        if(i&lt;n-1 &amp;&amp; j&lt;m-1 &amp;&amp; busyFR[i+1][j+1]==-1 &amp;&amp; busy[i+1][j+1]==-1 &amp;&amp; fires[i+1][j+1]==0){
+            return true;
+        }
+        else return false;
+    }
+    else return true;
+}
+
+int move_i(int i, int mov){
+    if (mov == 1 || mov == 2 || mov == 3){
+        return i-1;
+    }
+    else if(mov == 6 || mov == 7 || mov == 8){
+        return i+1;
+    }
+    else return i;
+}
+
+
+int move_j(int j, int mov){
+    if (mov == 1 || mov == 4 || mov == 6){
+        return j-1;
+    }
+    else if(mov == 3 || mov == 5 || mov == 8){
+        return j+1;
+    }
+    else return j;
+}
+
+
+//function to check if a civilian has already contacted the FR
+bool alreadyBusy(){
+int i;
+    for(i = 0; i &lt; numberOfCivilians; i++){
+        if(idOfTheFR[i]==id) return true;
+    }
+
+    return false;
+}
+
+
+//function to compute the distance from the FR to the endangered civilian
+int computeDistance(){
+    int x;
+    x = abs(whereIsTheVictim[idOfTheVictim[id]][0]-i) + abs(whereIsTheVictim[idOfTheVictim[id]][1]-j) - 1;
+    //the "-1" is because we assume that the ZR will help the civilian 
+    //from one of the tiles next to him (not from the same one)
+    return x;
+} </declaration>
+		<location id="id37" x="-1615" y="-263">
+			<name x="-1641" y="-298">start</name>
+			<committed/>
+		</location>
+		<location id="id38" x="-17" y="-272">
+			<name x="-43" y="-255">moving</name>
+			<committed/>
+		</location>
+		<location id="id39" x="127" y="280">
+			<name x="76" y="297">helpingNear</name>
+		</location>
+		<location id="id40" x="-1181" y="-263">
+			<name x="-1232" y="-289">idle</name>
+		</location>
+		<location id="id41" x="-1827" y="8">
+			<name x="-1810" y="16">calledForHelp</name>
+		</location>
+		<location id="id42" x="-875" y="-680">
+			<name x="-926" y="-714">updateMatrix</name>
+			<committed/>
+		</location>
+		<location id="id43" x="-1419" y="17">
+			<name x="-1461" y="-25">tellHelping</name>
+			<committed/>
+		</location>
+		<location id="id44" x="-1181" y="17">
+		</location>
+		<location id="id45" x="-705" y="-272">
+			<committed/>
+		</location>
+		<location id="id46" x="-459" y="-8">
+			<committed/>
+		</location>
+		<location id="id47" x="-1479" y="-136">
+			<committed/>
+		</location>
+		<location id="id48" x="-1827" y="-212">
+			<committed/>
+		</location>
+		<init ref="id37"/>
+		<transition id="id49">
+			<source ref="id41"/>
+			<target ref="id48"/>
+			<label kind="guard" x="-1963" y="-178">entityClock + 1 == sharedClock &amp;&amp;
+firstResponderClock &gt;= Tfr + computeDistance()</label>
+			<label kind="synchronisation" x="-1963" y="-144">firstResponderDone[idOfTheHelper[id]]!</label>
+			<label kind="assignment" x="-1963" y="-127">entityClock++,
+recClock[entityId]=entityClock,
+idNear=-1,
+idOfHelpingFR[idOfTheVictim[id]]=-1</label>
+		</transition>
+		<transition id="id50">
+			<source ref="id48"/>
+			<target ref="id40"/>
+			<label kind="synchronisation" x="-1734" y="-246">firstResponderDone[idOfTheVictim[id]]!</label>
+		</transition>
+		<transition id="id51">
+			<source ref="id47"/>
+			<target ref="id40"/>
+			<label kind="synchronisation" x="-1504" y="-195">firstResponderDone[idOfTheHelper[id]]!</label>
+		</transition>
+		<transition id="id52">
+			<source ref="id41"/>
+			<target ref="id47"/>
+			<label kind="guard" x="-1640" y="-110">entityClock + 1 == sharedClock</label>
+			<label kind="synchronisation" x="-1640" y="-93">tooLateFR[id]?</label>
+			<label kind="assignment" x="-1640" y="-76">entityClock++, 
+recClock[entityId]=entityClock</label>
+		</transition>
+		<transition id="id53">
+			<source ref="id46"/>
+			<target ref="id39"/>
+			<label kind="synchronisation" x="-425" y="25">firstResponderHelps[canHelp(i,j)]!</label>
+			<label kind="assignment" x="-331" y="42">idNear=canHelp(i, j),
+firstResponderClock=0,
+entityClock++,
+recClock[entityId]=entityClock,
+idOfTheVictim[id] = canHelp(i, j),
+idOfHelpingFR[idNear]=id</label>
+		</transition>
+		<transition id="id54">
+			<source ref="id40"/>
+			<target ref="id46"/>
+			<label kind="guard" x="-986" y="-195">canHelp(i,j)!=-1 &amp;&amp;
+entityClock + 1 == sharedClock
+&amp;&amp; !alreadyBusy()</label>
+			<label kind="assignment" x="-1163" y="-135">idNear=canHelp(i, j)</label>
+		</transition>
+		<transition id="id55">
+			<source ref="id38"/>
+			<target ref="id45"/>
+			<label kind="guard" x="-535" y="-110">canMoveThere(i,j,m)==false &amp;&amp;
+entityClock + 1 == sharedClock</label>
+			<nail x="-17" y="-119"/>
+			<nail x="-705" y="-110"/>
+		</transition>
+		<transition id="id56">
+			<source ref="id45"/>
+			<target ref="id38"/>
+			<label kind="assignment" x="-408" y="-416">m = 1</label>
+			<nail x="-391" y="-399"/>
+		</transition>
+		<transition id="id57">
+			<source ref="id45"/>
+			<target ref="id38"/>
+			<label kind="assignment" x="-408" y="-161">m = 8</label>
+			<nail x="-391" y="-161"/>
+		</transition>
+		<transition id="id58">
+			<source ref="id45"/>
+			<target ref="id38"/>
+			<label kind="assignment" x="-408" y="-187">m = 7</label>
+			<nail x="-391" y="-187"/>
+		</transition>
+		<transition id="id59">
+			<source ref="id45"/>
+			<target ref="id38"/>
+			<label kind="assignment" x="-408" y="-212">m = 6</label>
+			<nail x="-391" y="-212"/>
+		</transition>
+		<transition id="id60">
+			<source ref="id45"/>
+			<target ref="id38"/>
+			<label kind="assignment" x="-408" y="-238">m = 5</label>
+			<nail x="-391" y="-238"/>
+		</transition>
+		<transition id="id61">
+			<source ref="id45"/>
+			<target ref="id38"/>
+			<label kind="assignment" x="-408" y="-391">m = 2</label>
+			<nail x="-391" y="-374"/>
+		</transition>
+		<transition id="id62">
+			<source ref="id45"/>
+			<target ref="id38"/>
+			<label kind="assignment" x="-408" y="-365">m = 3</label>
+			<nail x="-391" y="-348"/>
+		</transition>
+		<transition id="id63">
+			<source ref="id45"/>
+			<target ref="id38"/>
+			<label kind="assignment" x="-408" y="-340">m = 4</label>
+			<nail x="-391" y="-323"/>
+		</transition>
+		<transition id="id64">
+			<source ref="id40"/>
+			<target ref="id45"/>
+			<label kind="guard" x="-1147" y="-306">canHelp(i,j)==-1 &amp;&amp;
+entityClock + 1 == sharedClock
+&amp;&amp; !alreadyBusy()</label>
+		</transition>
+		<transition id="id65">
+			<source ref="id44"/>
+			<target ref="id44"/>
+			<label kind="guard" x="-1164" y="51">entityClock + 1 == sharedClock</label>
+			<label kind="assignment" x="-1163" y="17">entityClock++,
+recClock[entityId]=entityClock</label>
+			<nail x="-1062" y="17"/>
+			<nail x="-1062" y="102"/>
+		</transition>
+		<transition id="id66">
+			<source ref="id44"/>
+			<target ref="id43"/>
+			<label kind="guard" x="-1419" y="25">entityClock + 1 == sharedClock</label>
+			<label kind="synchronisation" x="-1419" y="59">contactFirstResponder[id]?</label>
+			<label kind="assignment" x="-1419" y="76">firstResponderClock=0,
+entityClock++,
+recClock[entityId]=entityClock,
+idOfHelpingFR[idOfTheVictim[id]]=id</label>
+		</transition>
+		<transition id="id67">
+			<source ref="id40"/>
+			<target ref="id44"/>
+			<label kind="synchronisation" x="-1241" y="-161">notifyFR[id]?</label>
+		</transition>
+		<transition id="id68">
+			<source ref="id39"/>
+			<target ref="id40"/>
+			<label kind="guard" x="-722" y="110">entityClock == sharedClock</label>
+			<label kind="synchronisation" x="-714" y="93">tooLateFR[id]?</label>
+			<label kind="assignment" x="-654" y="127">idOfHelpingFR[idNear]=-1,
+idNear=-1</label>
+			<nail x="-671" y="110"/>
+		</transition>
+		<transition id="id69">
+			<source ref="id39"/>
+			<target ref="id40"/>
+			<label kind="guard" x="-850" y="-8">entityClock + 1 == sharedClock</label>
+			<label kind="synchronisation" x="-782" y="8">tooLateFR[id]?</label>
+			<label kind="assignment" x="-850" y="-85">entityClock++, 
+recClock[entityId]=entityClock,
+idOfHelpingFR[idNear]=-1,
+idNear=-1</label>
+			<nail x="-654" y="59"/>
+		</transition>
+		<transition id="id70">
+			<source ref="id43"/>
+			<target ref="id41"/>
+			<label kind="synchronisation" x="-1759" y="-8">firstResponderHelps[idOfTheVictim[id]]!</label>
+		</transition>
+		<transition id="id71">
+			<source ref="id41"/>
+			<target ref="id41"/>
+			<label kind="guard" x="-1946" y="76">entityClock + 1 == sharedClock &amp;&amp;
+firstResponderClock &lt; Tfr + computeDistance()</label>
+			<label kind="assignment" x="-1921" y="118">entityClock++,
+recClock[entityId]=entityClock,
+firstResponderClock ++</label>
+			<nail x="-1785" y="76"/>
+			<nail x="-1879" y="76"/>
+		</transition>
+		<transition id="id72">
+			<source ref="id39"/>
+			<target ref="id39"/>
+			<label kind="guard" x="169" y="179">entityClock + 1 == sharedClock 
+&amp;&amp; firstResponderClock &lt; Tfr</label>
+			<label kind="assignment" x="169" y="221">entityClock++, firstResponderClock++,
+recClock[entityId]=entityClock</label>
+			<nail x="194" y="230"/>
+			<nail x="194" y="314"/>
+		</transition>
+		<transition id="id73">
+			<source ref="id38"/>
+			<target ref="id42"/>
+			<label kind="guard" x="-773" y="-637">canMoveThere(i,j,m)==true &amp;&amp;
+entityClock + 1 == sharedClock</label>
+			<label kind="assignment" x="-756" y="-595">busyFR[i][j]=-1,
+i=move_i(i,m),
+j=move_j(j,m)</label>
+		</transition>
+		<transition id="id74">
+			<source ref="id42"/>
+			<target ref="id40"/>
+			<label kind="guard" x="-1071" y="-663">entityClock + 1 == sharedClock</label>
+			<label kind="assignment" x="-1071" y="-646">busyFR[i][j]=id,
+entityClock++,
+recClock[entityId]=entityClock</label>
+		</transition>
+		<transition id="id75">
+			<source ref="id39"/>
+			<target ref="id40"/>
+			<label kind="guard" x="-646" y="-773">entityClock + 1 == sharedClock &amp;&amp;
+firstResponderClock &gt;= Tfr</label>
+			<label kind="synchronisation" x="-646" y="-731">firstResponderDone[idOfTheVictim[id]]!</label>
+			<label kind="assignment" x="-646" y="-714">entityClock++,
+recClock[entityId]=entityClock,
+idOfHelpingFR[idNear]=-1,
+idNear=-1</label>
+			<nail x="119" y="-731"/>
+			<nail x="-1173" y="-731"/>
+		</transition>
+		<transition id="id76">
+			<source ref="id37"/>
+			<target ref="id40"/>
+			<label kind="guard" x="-1419" y="-280">initDone</label>
+			<label kind="assignment" x="-1428" y="-297">busyFR[i][j]=id</label>
+		</transition>
+	</template>
+	<template>
+		<name x="5" y="5">Civilian</name>
+		<parameter>const int[0, entity_number] entityId, const int[0,numberOfCivilians-1] id, int[0,n-1] i, int[0,m-1] j, const int [0,100] Tv, const int [0,100] Tzr, const int [0,100] Tfr</parameter>
+		<declaration>// Place local declarations here.
+int dangerClock = 0;
+int clockZR;
+int clockFR;
+int clientZR;    //we will save here the id of the civilian the ZR is helping
+int overheadZR;
+int overheadFR;
+int r;
+int entityClock = 0;
+int t;
+int viewRadius = 2;
+
+int closestExit[2] = {-1, -1};
+
+
+
+//______________________________________________________________________________________________________
+//CONTROLLI PER I FUOCHI
+
+bool checkUnder(int i, int j)    //controlla la cella sotto
+{
+    return fires[i+1][j];
+}
+
+bool checkAbove(int i, int j)    //controlla la cella sopra
+{
+    return fires[i-1][j];
+}
+
+bool checkLeft(int i, int j)    //controlla la cella sinistra
+{
+    return fires[i][j-1];
+}
+
+bool checkRight(int i, int j)    //controlla la cella destra
+{
+    return fires[i][j+1];
+}
+
+bool checkDownLeft(int i, int j)    //controlla la cella diagonale in basso a sinistra
+{
+    return fires[i+1][j-1];
+}
+
+bool checkDownRight(int i, int j)    //controlla la cella diagonale in basso a destra
+{
+    return fires[i+1][j+1];
+}
+
+bool checkUpLeft(int i, int j)    //controlla la cella diagonale in alto a sinistra
+{
+    return fires[i-1][j-1];
+}
+
+bool checkUpRight(int i, int j)    //controlla la cella diagonale in alto a destra
+{
+    return fires[i-1][j+1];
+}
+
+//______________________________________________________________________________________________________
+//CONTROLLI PER LE USCITE
+
+bool checkUnderExit(int i, int j)    //controlla la cella sotto
+{
+    return exits[i+1][j];
+}
+
+bool checkAboveExit(int i, int j)    //controlla la cella sopra
+{
+    return exits[i-1][j];
+}
+
+bool checkLeftExit(int i, int j)    //controlla la cella sinistra
+{
+    return exits[i][j-1];
+}
+
+bool checkRightExit(int i, int j)    //controlla la cella destra
+{
+    return exits[i][j+1];
+}
+
+bool checkDownLeftExit(int i, int j)    //controlla la cella diagonale in basso a sinistra
+{
+    return exits[i+1][j-1];
+}
+
+bool checkDownRightExit(int i, int j)    //controlla la cella diagonale in basso a destra
+{
+    return exits[i+1][j+1];
+}
+
+bool checkUpLeftExit(int i, int j)    //controlla la cella diagonale in alto a sinistra
+{
+    return exits[i-1][j-1];
+}
+
+bool checkUpRightExit(int i, int j)    //controlla la cella diagonale in alto a destra
+{
+    return exits[i-1][j+1];
+}
+
+//______________________________________________________________________________________________________
+
+bool checkExit(int i, int j) 
+{
+    if(i==0)
+    {
+        if(j==0)
+        {
+            return checkUnderExit(i,j)||checkRightExit(i,j)||checkDownRightExit(i,j); 
+        }
+        else if(j==m-1)
+        {
+            return checkUnderExit(i,j)||checkLeft(i,j)||checkDownLeft(i,j); 
+        }
+        else
+        {
+            return checkUnderExit(i,j)||checkLeftExit(i,j)||checkRightExit(i,j)||checkDownLeftExit(i,j)||checkDownRightExit(i,j);
+        }
+    }
+    else if(i==n-1)
+    {
+        if(j==0)
+        {
+            return checkAboveExit(i,j)||checkRightExit(i,j)||checkUpRightExit(i,j); 
+        }
+        else if(j==m-1)
+        {
+            return checkAboveExit(i,j)||checkLeftExit(i,j)||checkUpLeftExit(i,j); 
+        }
+        else
+        {
+            return checkAboveExit(i,j)||checkLeftExit(i,j)||checkRightExit(i,j)||checkUpLeftExit(i,j)||checkUpRightExit(i,j);
+        }
+    }
+    else if(j==0)
+    {
+        return checkAboveExit(i,j)||checkUnderExit(i,j)||checkUpRightExit(i,j)||checkDownRightExit(i,j);
+    }
+    else if(j==m-1)
+    {
+        return checkAboveExit(i,j)||checkUnder(i,j)||checkUpLeftExit(i,j)||checkDownLeftExit(i,j);
+    }
+    else
+    {
+        return checkAboveExit(i,j)||checkUnderExit(i,j)||checkLeftExit(i,j)||checkRightExit(i,j)||checkDownLeftExit(i,j)||checkDownRightExit(i,j)||checkUpLeftExit(i,j)||checkUpRightExit(i,j);
+    }  
+}
+
+//______________________________________________________________________________________________________
+
+bool checkDanger(int i, int j) 
+{
+    if(i==0)
+    {
+        if(j==0)
+        {
+            return checkUnder(i,j)||checkRight(i,j)||checkDownRight(i,j); 
+        }
+        else if(j==m-1)
+        {
+            return checkUnder(i,j)||checkLeft(i,j)||checkDownLeft(i,j); 
+        }
+        else
+        {
+            return checkUnder(i,j)||checkLeft(i,j)||checkRight(i,j)||checkDownLeft(i,j)||checkDownRight(i,j);
+        }
+    }
+    else if(i==n-1)
+    {
+        if(j==0)
+        {
+            return checkAbove(i,j)||checkRight(i,j)||checkUpRight(i,j); 
+        }
+        else if(j==m-1)
+        {
+            return checkAbove(i,j)||checkLeft(i,j)||checkUpLeft(i,j); 
+        }
+        else
+        {
+            return checkAbove(i,j)||checkLeft(i,j)||checkRight(i,j)||checkUpLeft(i,j)||checkUpRight(i,j);
+        }
+    }
+    else if(j==0)
+    {
+        return checkAbove(i,j)||checkUnder(i,j)||checkUpRight(i,j)||checkDownRight(i,j);
+    }
+    else if(j==m-1)
+    {
+        return checkAbove(i,j)||checkUnder(i,j)||checkUpLeft(i,j)||checkDownLeft(i,j);
+    }
+    else
+    {
+        return checkAbove(i,j)||checkUnder(i,j)||checkLeft(i,j)||checkRight(i,j)||checkDownLeft(i,j)||checkDownRight(i,j)||checkUpLeft(i,j)||checkUpRight(i,j);
+    }  
+}
+
+//______________________________________________________________________________________________________
+
+
+int move(int rand)
+{       
+    if (rand == 0) {
+        if((i-1)&gt;=0 &amp;&amp; busy[i-1][j]==-1 &amp;&amp; busyFR[i-1][j]==-1)
+        {
+            return rand;
+        }
+    } else if (rand == 1) {
+        if((i-1)&gt;=0 &amp;&amp; (j+1)&lt;m &amp;&amp; busy[i-1][j+1]==-1 &amp;&amp; busyFR[i-1][j+1])
+        {
+            return rand;
+        }
+    } else if (rand == 2) {
+        if((j+1)&lt;m &amp;&amp; busy[i][j+1]==-1 &amp;&amp; busyFR[i][j+1]==-1)
+        {
+           return rand; 
+        }
+    } else if (rand == 3) {
+        if((i+1)&lt;n &amp;&amp; (j+1)&lt;m &amp;&amp; busy[i+1][j+1]==-1 &amp;&amp; busy[i+1][j+1]==-1)
+        {
+            return rand;
+        }
+    } else if (rand == 4)
+    { 
+        if((i+1)&lt;n &amp;&amp; busy[i+1][j]==-1 &amp;&amp; busyFR[i+1][j]==-1)
+        {
+            return rand;
+        }
+    } else if (rand == 5) {
+        if((i+1)&lt;n &amp;&amp; (j-1)&gt;=0 &amp;&amp; busy[i+1][j-1]==-1 &amp;&amp; busyFR[i+1][j-1]==-1)
+        {
+           return rand; 
+        }
+    } else if (rand == 6) {
+        if((i)&lt;n &amp;&amp; (j-1)&gt;=0 &amp;&amp; busy[i][j-1]==-1 &amp;&amp; busyFR[i][j-1]==-1)
+        {
+            return rand;
+        }
+    } else {
+        if((i-1)&gt;=0 &amp;&amp; (j-1)&gt;=0 &amp;&amp; busy[i-1][j-1]==-1 &amp;&amp; busyFR[i-1][j-1]==-1)
+        {
+            return rand;
+        }
+    }
+
+    return -1;
+}
+
+
+
+int move_i (int rand)
+{
+    if(rand==7||rand==0||rand==1)
+        {return i-1;}
+    else if(rand==2||rand==6||rand==-1)
+        {return i;}
+    else if(rand==5||rand==4||rand==3)
+        {return i+1;}
+    return -1;
+}
+
+int move_j (int rand)
+{
+    if(rand==7||rand==5||rand==6)
+        return j-1;
+    if(rand==0||rand==4||rand==-1)
+        return j;
+    if(rand==1||rand==2||rand==3)
+        return j+1;
+    
+    return -1;
+}
+
+//______________________________________________________________________________________________________
+//functions to calculate the overheads of helping operations
+
+int computeZR()
+{
+    int x;
+    x = abs(whereZR[id][0]-i) + abs(whereZR[id][1]-j) - 1;    //the "-1" is because we ssume that the ZR will help the civilian from one of the tiles next to him (not from the same one)
+    return x;
+}
+
+int comuteFR()
+{
+    int x;
+    x = abs(whereIsTheNeededFR[id][0]-i) + abs(whereIsTheNeededFR[id][1]-j);
+    return x;
+}
+
+
+//_________________________________________________________________________________________________________
+//function that returns true if the 
+bool exitClose(){
+int l;
+int k;
+int c;
+
+    for(l = i-viewRadius; l&lt;=i+viewRadius; l++){
+        if(l&gt;=0 || l &lt; n){
+            for(k = j-viewRadius; k&lt;=j+viewRadius; k++){
+                if(k&gt;=0 &amp;&amp; k&lt;m){
+                    if(exits[l][k]==1) return true;
+                }
+            }
+        }
+    }    
+return false;
+}
+
+int closestExitI(){
+int l;
+int k;
+int c;
+
+    for(l = i-viewRadius; l&lt;=i+viewRadius; l++){
+        if(l&gt;=0 &amp;&amp; l &lt; n){
+            for(k = j-viewRadius; k&lt;=j+viewRadius; k++){
+                if(k&gt;=0 &amp;&amp; k&lt;m){
+                    if(exits[l][k]==1) return l;
+                }
+            }
+        }
+    }    
+return -1;
+}
+
+int closestExitJ(){
+int l;
+int k;
+int c;
+
+    for(l = i-viewRadius; l&lt;=i+viewRadius; l++){
+        if(l&gt;=0 || l &lt; n){
+            for(k = j-viewRadius; k&lt;=j+viewRadius; k++){
+                if(k&gt;=0 &amp;&amp; k&lt;m){
+                    if(exits[l][k]==1) return k;
+                }
+            }
+        }
+    }    
+return -1;
+}
+
+int moveToExitJ(){
+    if(j&lt;closestExit[1])
+    {
+        return j+1;       
+    }else if(j&gt;closestExit[1]){
+        return j-1;
+    }else{
+        return j;
+    }
+}  
+
+int moveToExitI(){
+    if(i&lt;closestExit[0])
+    {
+        return i+1;       
+    }else if(i&gt;closestExit[0]){
+        return i-1;
+    }else{
+       return i;
+    }
+}</declaration>
+		<location id="id77" x="-697" y="-365">
+			<name x="-782" y="-357">moving</name>
+		</location>
+		<location id="id78" x="-119" y="-365">
+			<name x="-102" y="-365">danger</name>
+		</location>
+		<location id="id79" x="-697" y="-688">
+			<name x="-756" y="-688">safe</name>
+		</location>
+		<location id="id80" x="-926" y="-110">
+			<name x="-901" y="-119">zeroResponder</name>
+			<committed/>
+		</location>
+		<location id="id81" x="-697" y="399">
+			<name x="-680" y="382">firstResponder</name>
+		</location>
+		<location id="id82" x="476" y="-365">
+			<name x="442" y="-356">casualty</name>
+		</location>
+		<location id="id83" x="-119" y="-688">
+			<name x="-221" y="-722">beingHelpedFR</name>
+		</location>
+		<location id="id84" x="-119" y="-127">
+			<name x="-238" y="-153">beingHelpedZR</name>
+		</location>
+		<location id="id85" x="-1156" y="-365">
+			<name x="-1166" y="-399">start</name>
+			<committed/>
+		</location>
+		<location id="id86" x="-1292" y="-110">
+		</location>
+		<location id="id87" x="-119" y="399">
+			<name x="-129" y="365">contactedFR</name>
+		</location>
+		<location id="id88" x="-433" y="-365">
+			<committed/>
+		</location>
+		<location id="id89" x="-646" y="-170">
+			<committed/>
+		</location>
+		<location id="id90" x="-442" y="-187">
+			<committed/>
+		</location>
+		<init ref="id85"/>
+		<transition id="id91">
+			<source ref="id90"/>
+			<target ref="id88"/>
+			<label kind="assignment" x="-442" y="-314">r = move(r),
+busy[i][j]=-1,
+i=move_i(r), 
+j=move_j(r), 
+busy[i][j]=id</label>
+		</transition>
+		<transition id="id92">
+			<source ref="id89"/>
+			<target ref="id90"/>
+			<label kind="assignment" x="-561" y="-238">r = 7</label>
+			<nail x="-544" y="-238"/>
+		</transition>
+		<transition id="id93">
+			<source ref="id89"/>
+			<target ref="id90"/>
+			<label kind="assignment" x="-561" y="-221">r = 6</label>
+			<nail x="-544" y="-212"/>
+		</transition>
+		<transition id="id94">
+			<source ref="id89"/>
+			<target ref="id90"/>
+			<label kind="assignment" x="-561" y="-204">r = 5</label>
+			<nail x="-544" y="-195"/>
+		</transition>
+		<transition id="id95">
+			<source ref="id89"/>
+			<target ref="id90"/>
+			<label kind="assignment" x="-552" y="-153">r = 4</label>
+			<nail x="-527" y="-144"/>
+		</transition>
+		<transition id="id96">
+			<source ref="id89"/>
+			<target ref="id90"/>
+			<label kind="assignment" x="-552" y="-187">r = 3</label>
+		</transition>
+		<transition id="id97">
+			<source ref="id89"/>
+			<target ref="id90"/>
+			<label kind="assignment" x="-552" y="-170">r = 2</label>
+			<nail x="-535" y="-161"/>
+		</transition>
+		<transition id="id98">
+			<source ref="id89"/>
+			<target ref="id90"/>
+			<label kind="assignment" x="-552" y="-136">r = 1</label>
+			<nail x="-527" y="-127"/>
+		</transition>
+		<transition id="id99">
+			<source ref="id89"/>
+			<target ref="id90"/>
+			<label kind="assignment" x="-553" y="-127">r = 0</label>
+			<nail x="-527" y="-110"/>
+		</transition>
+		<transition id="id100">
+			<source ref="id77"/>
+			<target ref="id89"/>
+			<label kind="guard" x="-697" y="-306">checkExit(i,j)==false &amp;&amp; 
+checkDanger(i,j)==false &amp;&amp;
+entityClock + 1 == sharedClock</label>
+		</transition>
+		<transition id="id101">
+			<source ref="id86"/>
+			<target ref="id86"/>
+			<label kind="guard" x="-1232" y="-170">entityClock + 1 == sharedClock
+&amp;&amp; clockZR&lt;Tzr+overheadZR</label>
+			<label kind="assignment" x="-1232" y="-229">entityClock ++,
+recClock[entityId] = entityClock,
+clockZR ++</label>
+			<nail x="-1164" y="-162"/>
+			<nail x="-1181" y="-204"/>
+		</transition>
+		<transition id="id102">
+			<source ref="id80"/>
+			<target ref="id80"/>
+			<label kind="guard" x="-986" y="17">entityClock + 1 == sharedClock
+&amp;&amp; sharedClock == t</label>
+			<label kind="assignment" x="-986" y="-25">entityClock ++,
+recClock[entityId] = entityClock</label>
+			<nail x="-850" y="-25"/>
+			<nail x="-977" y="-25"/>
+		</transition>
+		<transition id="id103">
+			<source ref="id88"/>
+			<target ref="id79"/>
+			<label kind="guard" x="-323" y="-518">checkExit(i, j)</label>
+			<label kind="assignment" x="-365" y="-501">entityClock ++,
+recClock[entityId] = sharedClock,
+busy[i][j] = -1,
+count_safe++</label>
+			<nail x="-382" y="-433"/>
+			<nail x="-255" y="-433"/>
+			<nail x="-255" y="-561"/>
+			<nail x="-331" y="-561"/>
+			<nail x="-331" y="-637"/>
+			<nail x="-663" y="-637"/>
+		</transition>
+		<transition id="id104">
+			<source ref="id88"/>
+			<target ref="id77"/>
+			<label kind="guard" x="-671" y="-399">!checkDanger(i, j) &amp;&amp;
+!checkExit(i, j)</label>
+			<label kind="assignment" x="-663" y="-365">entityClock ++,
+recClock[entityId] = sharedClock</label>
+			<nail x="-535" y="-365"/>
+		</transition>
+		<transition id="id105">
+			<source ref="id88"/>
+			<target ref="id78"/>
+			<label kind="guard" x="-374" y="-408">checkDanger(i, j) == true &amp;&amp; 
+!checkExit(i,j) == true</label>
+			<label kind="assignment" x="-374" y="-357">dangerClock = sharedClock, 
+entityClock ++,
+recClock[entityId] = sharedClock</label>
+		</transition>
+		<transition id="id106">
+			<source ref="id83"/>
+			<target ref="id83"/>
+			<label kind="guard" x="-68" y="-748">entityClock + 1 == sharedClock &amp;&amp;
+dangerClock + Tv &gt; sharedClock</label>
+			<label kind="assignment" x="-68" y="-714">entityClock ++,
+recClock[entityId] = entityClock</label>
+			<nail x="-8" y="-688"/>
+			<nail x="-8" y="-722"/>
+		</transition>
+		<transition id="id107">
+			<source ref="id84"/>
+			<target ref="id84"/>
+			<label kind="guard" x="-246" y="-93">entityClock + 1 == sharedClock</label>
+			<label kind="assignment" x="-246" y="-127">entityClock ++,
+recClock[entityId] = entityClock</label>
+			<nail x="-195" y="-127"/>
+			<nail x="-195" y="-76"/>
+			<nail x="-119" y="-76"/>
+		</transition>
+		<transition id="id108">
+			<source ref="id87"/>
+			<target ref="id87"/>
+			<label kind="guard" x="-195" y="416">entityClock + 1 == sharedClock</label>
+			<label kind="assignment" x="-187" y="433">entityClock ++,
+recClock[entityId] = entityClock</label>
+			<nail x="-153" y="442"/>
+			<nail x="-34" y="442"/>
+		</transition>
+		<transition id="id109">
+			<source ref="id81"/>
+			<target ref="id81"/>
+			<label kind="guard" x="-986" y="382">entityClock + 1 == sharedClock</label>
+			<label kind="assignment" x="-986" y="399">entityClock ++,
+recClock[entityId] = entityClock</label>
+			<nail x="-884" y="399"/>
+			<nail x="-884" y="458"/>
+		</transition>
+		<transition id="id110">
+			<source ref="id79"/>
+			<target ref="id79"/>
+			<label kind="guard" x="-969" y="-765">entityClock + 1 == sharedClock</label>
+			<label kind="assignment" x="-994" y="-807">entityClock ++,
+recClock[entityId] = entityClock</label>
+			<nail x="-731" y="-807"/>
+			<nail x="-867" y="-807"/>
+		</transition>
+		<transition id="id111">
+			<source ref="id82"/>
+			<target ref="id82"/>
+			<label kind="guard" x="280" y="-510">entityClock + 1 == sharedClock</label>
+			<label kind="assignment" x="306" y="-493">entityClock ++,
+recClock[entityId] = entityClock</label>
+			<nail x="382" y="-476"/>
+			<nail x="518" y="-476"/>
+		</transition>
+		<transition id="id112">
+			<source ref="id78"/>
+			<target ref="id78"/>
+			<label kind="guard" x="-93" y="-510">dangerClock + Tv &gt; sharedClock
+&amp;&amp; entityClock + 1 == sharedClock</label>
+			<label kind="assignment" x="-76" y="-476">entityClock ++,
+recClock[entityId] = entityClock</label>
+			<nail x="-102" y="-510"/>
+			<nail x="68" y="-510"/>
+		</transition>
+		<transition id="id113">
+			<source ref="id87"/>
+			<target ref="id79"/>
+			<label kind="synchronisation" x="400" y="306">firstResponderDone[id]?</label>
+			<label kind="assignment" x="400" y="281">busy[i][j]=-1, count_safe++</label>
+			<nail x="646" y="391"/>
+			<nail x="612" y="-824"/>
+			<nail x="-722" y="-815"/>
+		</transition>
+		<transition id="id114">
+			<source ref="id81"/>
+			<target ref="id87"/>
+			<label kind="guard" x="-536" y="348">entityClock + 1 == sharedClock
+&amp;&amp; clockFR + overheadFR &lt;= sharedClock</label>
+			<label kind="synchronisation" x="-561" y="331">contactFirstResponder[idOfTheFR[id]]!</label>
+			<label kind="assignment" x="-485" y="390">entityClock ++,
+recClock[entityId] = entityClock</label>
+		</transition>
+		<transition id="id115">
+			<source ref="id86"/>
+			<target ref="id77"/>
+			<label kind="synchronisation" x="-1088" y="-510">tooLate[id]?</label>
+			<label kind="assignment" x="-1274" y="-314">helping[id]=-1</label>
+			<nail x="-1164" y="-518"/>
+		</transition>
+		<transition id="id116">
+			<source ref="id86"/>
+			<target ref="id79"/>
+			<label kind="guard" x="-1275" y="-731">clockZR&gt;=Tzr+overheadZR &amp;&amp; 
+entityClock + 1 == sharedClock</label>
+			<label kind="synchronisation" x="-1274" y="-701">zeroResponderDone[helpingAsZR[id]]!</label>
+			<label kind="assignment" x="-1274" y="-684">entityClock ++,
+recClock[entityId] = entityClock,
+busy[i][j]=-1,
+count_safe++</label>
+			<nail x="-1292" y="-680"/>
+		</transition>
+		<transition id="id117">
+			<source ref="id80"/>
+			<target ref="id86"/>
+			<label kind="guard" x="-1266" y="-51">entityClock == sharedClock</label>
+			<label kind="synchronisation" x="-1266" y="-102">zeroResponderHelps[helpingAsZR[id]]!</label>
+			<label kind="assignment" x="-1266" y="-85">beingHelpedByZR[helpingAsZR[id]]=id,
+clockZR ++</label>
+		</transition>
+		<transition id="id118">
+			<source ref="id85"/>
+			<target ref="id77"/>
+			<label kind="guard" x="-1071" y="-391">initDone == true</label>
+			<label kind="assignment" x="-1071" y="-357">busy[i][j] = id,
+whereZR[id][0]=-1,
+whereZR[id][1]=-1,
+helpingAsZR[id]=-1</label>
+		</transition>
+		<transition id="id119">
+			<source ref="id77"/>
+			<target ref="id81"/>
+			<label kind="synchronisation" x="-833" y="204">tellToContactFirstResponder[id]?</label>
+			<label kind="assignment" x="-825" y="221">clockFR:=0, overheadFR=comuteFR(),
+helping[id]=id</label>
+		</transition>
+		<transition id="id120">
+			<source ref="id77"/>
+			<target ref="id80"/>
+			<label kind="synchronisation" x="-935" y="-263">becomeZeroResponder[id]?</label>
+			<label kind="assignment" x="-935" y="-246">clientZR = helpingAsZR[id],
+overheadZR=computeZR(),
+clockZR:=0,
+t=sharedClock,
+helping[id]=id</label>
+		</transition>
+		<transition id="id121">
+			<source ref="id84"/>
+			<target ref="id79"/>
+			<label kind="guard" x="76" y="-144">dangerClock + Tv &gt; sharedClock</label>
+			<label kind="synchronisation" x="76" y="-127">zeroResponderDone[id]?</label>
+			<label kind="assignment" x="76" y="-110">busy[i][j]=-1, count_safe++</label>
+			<nail x="535" y="-127"/>
+			<nail x="535" y="-773"/>
+			<nail x="-671" y="-765"/>
+		</transition>
+		<transition id="id122">
+			<source ref="id84"/>
+			<target ref="id82"/>
+			<label kind="guard" x="119" y="-246">dangerClock + Tv &lt;= sharedClock
+&amp;&amp; entityClock + 1 == sharedClock</label>
+			<label kind="synchronisation" x="85" y="-204">tooLate[beingHelpedByZR[id]]!</label>
+			<label kind="assignment" x="195" y="-306">busy[i][j]=-1,
+entityClock ++,
+recClock[entityId] = entityClock</label>
+		</transition>
+		<transition id="id123">
+			<source ref="id78"/>
+			<target ref="id84"/>
+			<label kind="guard" x="-221" y="-238">dangerClock + Tv &gt; sharedClock</label>
+			<label kind="synchronisation" x="-212" y="-221">zeroResponderHelps[id]?</label>
+			<label kind="assignment" x="-161" y="-255">helped[id]=id</label>
+		</transition>
+		<transition id="id124">
+			<source ref="id83"/>
+			<target ref="id79"/>
+			<label kind="guard" x="-654" y="-705">dangerClock + Tv &gt; sharedClock</label>
+			<label kind="synchronisation" x="-620" y="-722">firstResponderDone[id]?</label>
+			<label kind="assignment" x="-365" y="-705">busy[i][j]=-1,
+count_safe++</label>
+		</transition>
+		<transition id="id125">
+			<source ref="id83"/>
+			<target ref="id82"/>
+			<label kind="guard" x="34" y="-646">dangerClock + Tv &lt;= sharedClock
+&amp;&amp; entityClock + 1 == sharedClock</label>
+			<label kind="synchronisation" x="25" y="-663">tooLateFR[idOfHelpingFR[id]]!</label>
+			<label kind="assignment" x="127" y="-612">busy[i][j]=-1,
+entityClock ++,
+recClock[entityId] = entityClock</label>
+		</transition>
+		<transition id="id126">
+			<source ref="id78"/>
+			<target ref="id83"/>
+			<label kind="guard" x="-238" y="-595">dangerClock + Tv &gt; sharedClock</label>
+			<label kind="synchronisation" x="-212" y="-578">firstResponderHelps[id]?</label>
+			<label kind="assignment" x="-161" y="-561">helped[id]=id</label>
+		</transition>
+		<transition id="id127">
+			<source ref="id78"/>
+			<target ref="id82"/>
+			<label kind="guard" x="-8" y="-408">dangerClock + Tv &lt;= sharedClock
+&amp;&amp; entityClock + 1 == sharedClock</label>
+			<label kind="assignment" x="25" y="-365">busy[i][j]=-1, entityClock ++,
+recClock[entityId] = entityClock</label>
+		</transition>
+		<transition id="id128">
+			<source ref="id77"/>
+			<target ref="id79"/>
+			<label kind="guard" x="-926" y="-612">checkExit(i, j) == true &amp;&amp;
+entityClock + 1 == sharedClock</label>
+			<label kind="assignment" x="-935" y="-578">entityClock ++,
+recClock[entityId] = entityClock,
+busy[i][j]=-1,
+count_safe++</label>
+		</transition>
+	</template>
+	<system>
+
+// Place template instantiations here.
+//&lt;entityId, id, i, j, Tv, Tzr, Tfr&gt; are the parameters required for the civilian 
+//&lt;entityId, id, i, j, Tfr&gt; are the parameters fot the First Responder
+//&lt;entityId, drone_id, i, j, N_v, tresh, diam&gt; parameters for the drone. "tresh" mi dice quanto può essere lontano il FR per essere comunque chiamato
+
+
+//NON MODIFICARE
+Sync0 = Sync();
+CivilianSystem0 = Civilian(0, 0, 4, 2, 7, 5, 1);
+CivilianSystem1 = Civilian(1, 1, 14, 8, 7, 5, 1);
+CivilianSystem2 = Civilian(2, 2, 6, 7, 7, 5, 1);
+CivilianSystem3 = Civilian(3, 3, 10, 8, 7, 5, 1);
+CivilianSystem4 = Civilian(4, 4, 12, 6, 7, 5, 1);
+CivilianSystem5 = Civilian(5, 5, 20, 3, 7, 5, 1);
+CivilianSystem6 = Civilian(6, 6, 14, 4, 7, 5, 1);
+
+DroneSystem0 = Drone(7, 1, 9, 5, 2, 2, 3);
+DroneSystem1 = Drone(8, 2, 14, 5, 2, 2, 3);
+
+
+FirstResponder0 = FirstResponder(9, 0, 4, 5, 1);
+FirstResponder1 = FirstResponder(10, 1, 15, 6, 1);
+FirstResponder2 = FirstResponder(11, 2, 12, 8, 1);
+FirstResponder3 = FirstResponder(12, 3, 15, 8, 1);
+
+
+system Sync0, CivilianSystem0, CivilianSystem1, CivilianSystem2, CivilianSystem3, CivilianSystem4, CivilianSystem5, CivilianSystem6,
+              DroneSystem0, DroneSystem1, FirstResponder0, FirstResponder1, FirstResponder2, FirstResponder3;
+</system>
+	<queries>
+		<query>
+			<formula>E&lt;&gt; (sharedClock&lt;=6 &amp;&amp; count_safe&gt;=3 )</formula>
+			<comment/>
+			<option key="--exploration" value="1"/>
+			<result outcome="success" type="quality" timestamp="2024-07-21 03:51:01 +0200">
+				<option key="--exploration" value="1"/>
+			</result>
+		</query>
+		<query>
+			<formula>E&lt;&gt; (sharedClock&lt;=2 &amp;&amp; count_safe&gt;=1 )</formula>
+			<comment/>
+			<option key="--exploration" value="1"/>
+			<result outcome="success" type="quality" timestamp="2024-07-21 03:51:27 +0200">
+				<option key="--exploration" value="1"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[] (sharedClock&gt;=5 imply count_safe&gt;=3)</formula>
+			<comment/>
+			<result outcome="failure" type="quality" timestamp="2024-07-21 15:32:49 +0200">
+			</result>
+		</query>
+		<query>
+			<formula>A[] (sharedClock&gt;=5 imply count_safe&gt;=1)</formula>
+			<comment/>
+			<result outcome="failure" type="quality" timestamp="2024-07-21 15:33:21 +0200">
+			</result>
+		</query>
+	</queries>
+</nta>
